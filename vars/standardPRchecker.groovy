@@ -2,11 +2,10 @@ def call(Map pipelineParams) {
 
     // Asserts
     assert pipelineParams.gitRepoUrl != null
-    assert (pipelineParams.gitRepoUrl).contains("https://")
+    // assert (pipelineParams.gitRepoUrl).contains("https://")
     assert pipelineParams.gitRepoSshUrl != null
     assert (pipelineParams.gitRepoSshUrl).contains("git@")
     assert pipelineParams.branch != null
-
 
     pipeline {
         agent {
@@ -83,9 +82,24 @@ def call(Map pipelineParams) {
                 )
             }
             always {
-                updateGithubCommitStatus("Jenkins Job ${env.BUILD_NUMBER} - Result: ${currentBuild.currentResult} ")
-                sh "docker-compose -f ./environment/docker/docker-compose.yml down --rmi local -v"
+                step([
+                    $class: 'GitHubCommitStatusSetter',
+                    reposSource: [$class: "ManuallyEnteredRepositorySource", url: pipelineParams.gitRepoSshUrl],
+                    commitShaSource: [$class: "ManuallyEnteredShaSource", sha: pipelineParams.branch],
+                    errorHandlers: [[$class: 'ShallowAnyErrorHandler']],
+                    statusResultSource: [
+                        $class: 'ConditionalStatusResultSource',
+                        results: [
+                            [$class: 'BetterThanOrEqualBuildResult', result: 'UNSTABLE', state: 'SUCCESS', message: "Jenkins Job ${env.BUILD_NUMBER} - Result: ${currentBuild.currentResult} "],
+                            [$class: 'BetterThanOrEqualBuildResult', result: 'FAILURE', state: 'FAILURE', message: "Jenkins Job ${env.BUILD_NUMBER} - Result: ${currentBuild.currentResult} "],
+                            [$class: 'AnyBuildResult', state: 'FAILURE', message: 'Loophole']
+                        ]
+                    ]
+                ])
+                sh "docker-compose -f environments/docker/docker-compose.yml down --rmi local -v"
                 sh "docker system prune -f"
+                sh 'docker run --rm -v ${WORKSPACE}:/work -w /work -e L_UID=$(id -u) -e G_UID=$(id -g) ubuntu:20.04 bash -c \'chown -R ${L_UID}:${G_UID} . \''
+                sh 'docker run --rm -v ${WORKSPACE}:/work -w /work -e L_UID=$(id -u) -e G_UID=$(id -g) ubuntu:20.04 bash -c \'chown -R ${L_UID}:${G_UID} .git \''
                 deleteDir()
                 cleanWs deleteDirs: true, disableDeferredWipeout: true
             }
