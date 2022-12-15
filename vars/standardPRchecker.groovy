@@ -1,11 +1,8 @@
 def call(Map pipelineParams) {
 
     // Asserts
+    assert pipelineParams.agent != null
     assert pipelineParams.gitRepoUrl != null
-    // assert (pipelineParams.gitRepoUrl).contains("https://")
-    assert pipelineParams.gitRepoSshUrl != null
-    assert (pipelineParams.gitRepoSshUrl).contains("git@")
-    assert pipelineParams.branch != null
 
     pipeline {
         agent {
@@ -36,12 +33,12 @@ def call(Map pipelineParams) {
                 steps{
                     checkout([
                         $class                           : 'GitSCM',
-                        branches                         : [[name: pipelineParams.branch]],
+                        branches                         : [[name: GITHUB_PR_HEAD_SHA]],
                         doGenerateSubmoduleConfigurations: false,
                         extensions                       : [],
                         gitTool                          : 'Default',
                         submoduleCfg                     : [],
-                        userRemoteConfigs                : [[credentialsId: '03ce9989-445b-437a-868c-64293e2c1de6', url: pipelineParams.gitRepoSshUrl ]]
+                        userRemoteConfigs                : [[credentialsId: '03ce9989-445b-437a-868c-64293e2c1de6', url: GITHUB_REPO_GIT_URL ]]
                     ])
                 }
             }
@@ -78,14 +75,14 @@ def call(Map pipelineParams) {
                     compressLog: true,
                     recipientProviders: [culprits()],
                     subject: "[${currentBuild.projectName}] Failed Pipeline: ${currentBuild.fullDisplayName}",
-                    body: "Something is wrong with ${env.BUILD_URL} on branch ${pipelineParams.branch}, please check the log"
+                    body: "Something is wrong with ${env.BUILD_URL} on branch ${GITHUB_PR_SOURCE_BRANCH}, please check the log"
                 )
             }
             always {
                 step([
                     $class: 'GitHubCommitStatusSetter',
-                    reposSource: [$class: "ManuallyEnteredRepositorySource", url: pipelineParams.gitRepoSshUrl],
-                    commitShaSource: [$class: "ManuallyEnteredShaSource", sha: pipelineParams.branch],
+                    reposSource: [$class: "ManuallyEnteredRepositorySource", url: GITHUB_REPO_SSH_URL],
+                    commitShaSource: [$class: "ManuallyEnteredShaSource", sha: GITHUB_PR_HEAD_SHA],
                     errorHandlers: [[$class: 'ShallowAnyErrorHandler']],
                     statusResultSource: [
                         $class: 'ConditionalStatusResultSource',
