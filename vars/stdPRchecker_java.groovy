@@ -38,7 +38,7 @@ def call(Map pipelineParams) {
                         extensions                       : [],
                         gitTool                          : 'Default',
                         submoduleCfg                     : [],
-                        userRemoteConfigs                : [[credentialsId: '03ce9989-445b-437a-868c-64293e2c1de6', url: GITHUB_REPO_GIT_URL ]]
+                        userRemoteConfigs                : [[credentialsId: '03ce9989-445b-437a-868c-64293e2c1de6', url: GITHUB_REPO_SSH_URL ]]
                     ])
                 }
             }
